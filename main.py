@@ -1,8 +1,10 @@
 import json, numpy
+
+from constants import NEWSPAPER_ORIENTATION
 from svm import *
 from mlp import *
 
-# Read in COP file data, for the default all files are read
+# Read in COP file data, for the default all files are read, otherwise a list of indices should be provided
 def read_data(cop_selection=None, surpress_print=False):
     if not cop_selection:
         cop_selection = list(range(1, 24 + 1))
@@ -22,9 +24,23 @@ def read_data(cop_selection=None, surpress_print=False):
     print('Done!')
     return cop_data
 
+# Retrieve training data (X = article_body, Y = political_orientation), for the default all files are read, otherwise a list of indices should be provided
+def get_train_data(cop_selection=None):
+    cop_data = read_data(cop_selection)
+    trainX, trainY = list(), list()
+
+    for cop in cop_data.keys():
+        for article in cop_data[cop]['articles']:
+            article_body = article['body']
+            political_orientation = NEWSPAPER_ORIENTATION[article['newspaper']]
+            trainX.append(article_body)
+            trainY.append(political_orientation)
+
+    return trainX, trainY
+
 
 if __name__ == '__main__':
-    read_data(list(range(5,6)))
-    data = {}
+    # read_data(list(range(5,6)))
+    data = get_train_data(list(range(1,4)))
     svm(data)
     mlp(data)
