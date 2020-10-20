@@ -11,7 +11,7 @@ def basics(cop):
 
 def counts(articles):
     counts = dict()
-    counts['#total_articles'] = len(articles)
+    counts['total_articles'] = len(articles)
     counts['newspapers'] = dict([(np,0) for np in get_newspaper_list()])
     counts['labels'] = {'Right-Center':0, 'Left-Center':0}
     counts['country'] = {'Australian':0, 'India':0, 'South Africa':0, 'United States':0}
@@ -24,7 +24,7 @@ def counts(articles):
     return counts
 
 
-def get_stats_per_cop(cop_selection):
+def get_stats_per_cop(cop_selection=None):
     cop_data = read_data(cop_selection)
     statistics = dict()
     for cop in cop_data:
