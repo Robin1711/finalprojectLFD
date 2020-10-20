@@ -53,9 +53,9 @@ def get_stats(cop_selection=None):
 
 
 if __name__ == '__main__':
-    print(get_stats())
-    uniques = get_unique_classifications()
-    print(len(uniques['subject']))
-    print(len(uniques['organization']))
-    print(len(uniques['subject']))
-    print(len(uniques['subject']))
+    print(get_stats_per_cop(first=5, last=6))
+    # uniques = get_unique_classifications()
+    # print(len(uniques['subject']))
+    # print(len(uniques['organization']))
+    # print(len(uniques['subject']))
+    # print(len(uniques['subject']))
