@@ -1,6 +1,6 @@
 
 def mlp(data):
-    print("I'm doing svm!")
+    print("Sommer's happy mlp fun time")
 
 
 if __name__ == '__main__':

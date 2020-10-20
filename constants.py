@@ -37,10 +37,10 @@ def get_newspaper_list():
 
 
 def get_unique_classifications():
-    cops = read_data(first=1,last=24)
+    cop_data = read_data()
     articles = list()
-    for cop in cops.keys():
-        articles = articles + cops[cop]['articles']
+    for cop in cop_data.keys():
+        articles = articles + cop_data[cop]['articles']
 
     uniques = {'subject':set(),'organization':set(),'industry':set(),'geographic':set()}
     for article in articles:

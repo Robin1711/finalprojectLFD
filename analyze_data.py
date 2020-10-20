@@ -24,28 +24,27 @@ def counts(articles):
     return counts
 
 
-def get_stats_per_cop(first=1, last=24):
-    cops = read_data(first=first, last=last)
-    # cops = read_data()
+def get_stats_per_cop(cop_selection):
+    cop_data = read_data(cop_selection)
     statistics = dict()
-    for cop in cops:
+    for cop in cop_data:
         statistics[cop] = dict()
         statistics[cop]['basics'] = dict()
-        statistics[cop]['basics'] = basics(cops[cop])
+        statistics[cop]['basics'] = basics(cop_data[cop])
         statistics[cop]['counts'] = dict()
-        statistics[cop]['counts'] = counts(cops[cop]['articles'])
+        statistics[cop]['counts'] = counts(cop_data[cop]['articles'])
 
     return statistics
 
 
 def get_stats(cop_selection=None):
-    cops = read_data()
+    cop_data = read_data(cop_selection)
     articles = list()
 
     if not cop_selection:
-        cop_selection = cops.keys()
+        cop_selection = cop_data.keys()
     for cop in cop_selection:
-        articles = articles + cops[cop]['articles']
+        articles = articles + cop_data[cop]['articles']
 
     stats = dict()
     stats['counts'] = counts(articles)
@@ -53,7 +52,7 @@ def get_stats(cop_selection=None):
 
 
 if __name__ == '__main__':
-    print(get_stats_per_cop(first=5, last=6))
+    print(get_stats_per_cop(list(range(5,6))))
     # uniques = get_unique_classifications()
     # print(len(uniques['subject']))
     # print(len(uniques['organization']))
