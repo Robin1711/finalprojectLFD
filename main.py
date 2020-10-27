@@ -1,5 +1,6 @@
-import json, numpy
+# !/usr/bin/env python3
 
+import json, numpy
 from constants import NEWSPAPER_ORIENTATION
 from svm import *
 from mlp import *
@@ -24,7 +25,8 @@ def read_data(cop_selection=None, surpress_print=False):
     print('Done!')
     return cop_data
 
-# Retrieve training data (X = article_body, Y = political_orientation), for the default all files are read, otherwise a list of indices should be provided
+# Retrieve training data (X = article_body, Y = political_orientation), for the default all
+# files are read, otherwise a list of indices should be provided
 def get_train_data(cop_selection=None):
     cop_data = read_data(cop_selection)
     trainX, trainY = list(), list()
