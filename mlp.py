@@ -3,9 +3,7 @@ from main import *
 
 import argparse
 import numpy as np
-import math
-import nltk
-import time
+import math, nltk, json, time
 from collections import Counter
 
 import matplotlib.pyplot as plt
@@ -44,7 +42,7 @@ def create_confusion_matrix(true, pred, classes):
 def read_embeddings(embeddings_file):
     print('Reading in embeddings from {0}...'.format(embeddings_file))
     embeddings = json.load(open(embeddings_file, 'r'))
-    embeddings = {word: numpy.array(embeddings[word]) for word in embeddings}
+    embeddings = {word: np.array(embeddings[word]) for word in embeddings}
     print('Done!')
     return embeddings
 
