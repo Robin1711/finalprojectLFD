@@ -1,5 +1,10 @@
-# IGNORE THE DATA FOLDER
+# IGNORE THE DATA FOLDERS
 data/
+plots/
+
+# IGNORE IDEA SETTINGS & .DS_Store
+.idea/
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
