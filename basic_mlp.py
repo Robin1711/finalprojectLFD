@@ -46,8 +46,9 @@ def load_data():
     # Some code for modifying the left-center - right-center balance of the data
     lefties = [(d,l) for d,l in data if l == "Left-Center"]
     righties = [(d,l) for d,l in data if l == "Right-Center"]
+    number_docs = max(len(lefties), len(righties))
     print("BALANCE OF DATA:\n", "\tLEFT-CENTER={0}".format(len(lefties)), "\tRIGHT-CENTER={0}".format(len(righties)) )
-    data = righties[:1500] + lefties[:1500]
+    data = righties[:number_docs] + lefties[:number_docs]
     np.random.shuffle(data)
     # END
 

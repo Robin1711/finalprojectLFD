@@ -70,46 +70,46 @@ def get_train_data(cop_selection=None):
     return trainX, trainY
 
 
-# X, Y = get_train_data()
-#
-#
-# split_point = int(0.80 * len(X))
-# Xtrain = X[:split_point]
-# Ytrain = Y[:split_point]
-# Xtest = X[split_point:]
-# Ytest = Y[split_point:]
-#
-#
-# def identity(x):
-#     return x
-#
-# vec = TfidfVectorizer(preprocessor=identity,
-#                       tokenizer=identity, ngram_range=(2, 3))
-#
-# svc = SVC(kernel='rbf', C=1000000, gamma=0.001)
-#
-# classifier = make_pipeline(vec, svc)
-#
-# # Fitting our classifier onto our data
-# t0 = time.time()
-# classifier.fit(Xtrain, Ytrain)
-# train_time = time.time() - t0
-# print("training time: ", train_time)
-#
-# # Testing new data
-# t0 = time.time()
-# Yguess = classifier.predict(Xtest)
-# test_time = time.time() - t0
-# print("testing time: ", test_time, '\n')
-#
-# print(accuracy_score(Ytest, Yguess))
-# print(classification_report(Ytest, Yguess, zero_division=0))
-# print(confusion_matrix(Ytest, Yguess))
-#
-# # Defining 10 - fold cross - validation
-# print(f"Performing 10-fold cross validation..")
-# scores = cross_val_score(classifier, Xtrain, Ytrain, cv=10)
-# print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+X, Y = get_train_data()
+
+
+split_point = int(0.80 * len(X))
+Xtrain = X[:split_point]
+Ytrain = Y[:split_point]
+Xtest = X[split_point:]
+Ytest = Y[split_point:]
+
+
+def identity(x):
+    return x
+
+vec = TfidfVectorizer(preprocessor=identity,
+                      tokenizer=identity, ngram_range=(2, 3))
+
+svc = SVC(kernel='rbf', C=1000000, gamma=0.001)
+
+classifier = make_pipeline(vec, svc)
+
+# Fitting our classifier onto our data
+t0 = time.time()
+classifier.fit(Xtrain, Ytrain)
+train_time = time.time() - t0
+print("training time: ", train_time)
+
+# Testing new data
+t0 = time.time()
+Yguess = classifier.predict(Xtest)
+test_time = time.time() - t0
+print("testing time: ", test_time, '\n')
+
+print(accuracy_score(Ytest, Yguess))
+print(classification_report(Ytest, Yguess, zero_division=0))
+print(confusion_matrix(Ytest, Yguess))
+
+# Defining 10 - fold cross - validation
+print(f"Performing 10-fold cross validation..")
+scores = cross_val_score(classifier, Xtrain, Ytrain, cv=10)
+print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 ########################################################
 ########################################################
