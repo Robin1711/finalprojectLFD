@@ -2,7 +2,7 @@
 
 import json, numpy
 from constants import NEWSPAPER_ORIENTATION
-from svm import *
+# from svm import *
 from mlp import *
 
 # Read in COP file data, for the default all files are read, otherwise a list of indices should be provided
