@@ -25,6 +25,21 @@ def read_data(cop_selection=None, surpress_print=False):
     print('Done!')
     return cop_data
 
+# Takes as argument a text file and preprocesses it: lowercasing, removing non-alphabetic characters, 
+# punctuations and stopwords, and lastly returns a cleaned list of tokens
+def preprocess_text(text):
+    txt = text.lower()
+    txt = re.sub(r"[^a-zA-ZÀ-ÿ]", " ", txt)
+    translator = str.maketrans(punctuations, " " * len(punctuations))
+    s = txt.translate(translator)
+    no_digits = ''.join([i for i in s if not i.isdigit()])
+    cleaner = " ".join(no_digits.split())
+    word_tokens = word_tokenize(cleaner)
+    filtered_sentence = [w for w in word_tokens if not w in stoplist]
+    
+    return filtered_sentence
+
+
 # Retrieve training data (X = article_body, Y = political_orientation), for the default all
 # files are read, otherwise a list of indices should be provided
 def get_train_data(cop_selection=None):
@@ -35,7 +50,7 @@ def get_train_data(cop_selection=None):
         for article in cop_data[cop]['articles']:
             article_body = article['body']
             political_orientation = NEWSPAPER_ORIENTATION[article['newspaper']]
-            trainX.append(article_body)
+            trainX.append(preprocess_text(article_body))
             trainY.append(political_orientation)
 
     return trainX, trainY
