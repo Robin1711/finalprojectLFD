@@ -18,13 +18,13 @@ import os
 import string
 import json
 
-def body_text(cop_selection=None):
+def body_text(cop_selection=None, surpress_print=True):
 	"""
 	This module takes the textbody from every article in the dataset and preprocesses it.
 	"""
 
 	f1 = open("embeddings/articlebodies.txt", "w+")
-	cop_data = read_data(cop_selection)
+	cop_data = read_data(cop_selection, surpress_print)
 	articles = []
 
 	# We create a stopwords dictionary to remove the stopwords from the articletext later on
@@ -69,7 +69,7 @@ def train_embeddings():
 	vocabulary = tokenization()
 
 	# Train and save the word2vec model
-	model = Word2Vec(vocabulary, size=100, window=3, min_count=15, workers=4)
+	model = Word2Vec(vocabulary, size=100, window=10, min_count=15, workers=4)
 	print("Model trained")
 	model.wv.save_word2vec_format("embeddings/word_embeddings.txt", binary=False)
 	print("Model saved")
