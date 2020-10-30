@@ -135,9 +135,9 @@ print("testing time: ", test_time, '\n')
 
 # Printing metrics
 print("Accuracy:\t", accuracy_score(Ytest, Yguess))
-#print("F-scores:\t", f1_score(Ytest, Yguess))
-print("Precision:\t", precision_score(Ytest, Yguess))
-print("Recall:\t", recall_score(Ytest, Yguess))
+print("F-scores:\t", f1_score(Ytest, Yguess, pos_label='Left-Center'))
+print("Precision:\t", precision_score(Ytest, Yguess, pos_label='Left-Center'))
+print("Recall:\t", recall_score(Ytest, Yguess, pos_label='Left-Center'))
 print(classification_report(Ytest, Yguess))
 print(confusion_matrix(Ytest, Yguess))
 
