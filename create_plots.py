@@ -1,3 +1,15 @@
+# !/usr/bin/env python3
+"""
+create_plots.py
+
+This script creates and outputs graphics to illustrate data distribution of the following labels:
+- Countries per COP
+- Political orientations per COP
+- The newspapers for the total training set
+- The countries for the total training set
+- The political orientations for the total training set
+"""
+
 from analyze_data import *
 import matplotlib.pyplot as plt
 import numpy as np

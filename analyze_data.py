@@ -1,3 +1,10 @@
+# !/usr/bin/env python3
+"""
+analyze_data.py
+
+This script gathers information about the data distribution in the form of counts for newspapers, political orientation and countries, both per cop and in total.
+"""
+
 from main import *
 from constants import *
 
@@ -53,8 +60,8 @@ def get_stats(cop_selection=None):
 
 if __name__ == '__main__':
     print(get_stats_per_cop(list(range(5,6))))
-    # uniques = get_unique_classifications()
-    # print(len(uniques['subject']))
-    # print(len(uniques['organization']))
-    # print(len(uniques['subject']))
-    # print(len(uniques['subject']))
+    uniques = get_unique_classifications()
+    print(len(uniques['subject']))
+    print(len(uniques['organization']))
+    print(len(uniques['subject']))
+    print(len(uniques['subject']))

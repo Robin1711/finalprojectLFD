@@ -1,3 +1,10 @@
+# !/usr/bin/env python3
+"""
+constants.py
+
+This script does not compute anything on its own, but rather defines several terms and constants the other scripts utilize.
+"""
+
 NEWSPAPERS = [
     'The Australian' , 'Sydney Morning Herald (Australia)', 'The Age (Melbourne, Australia)'
     , 'The Times of India (TOI)', 'The Hindu'
