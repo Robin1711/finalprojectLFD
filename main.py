@@ -1,4 +1,9 @@
 # !/usr/bin/env python3
+"""
+main.py
+
+This script defines six modules for the other scripts to import, all of which perform some general action. This prevents duplicate code in our scripts.
+"""
 
 import json
 import string
