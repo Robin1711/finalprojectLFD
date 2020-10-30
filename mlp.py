@@ -1,9 +1,6 @@
 # !/usr/bin/env python3
-from keras.optimizers import SGD
-
 from main import *
 import numpy as np
-import math
 import time
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
@@ -14,13 +11,14 @@ from keras.layers.core import Dense, Activation
 
 np.random.seed(2018)  # for reproducibility and comparability, don't change!
 BATCH_SIZE = 10
-EPOCHS = 50
+EPOCHS = 25
 K_FOLDS = 8
 USE_CROSSVALIDATION = False
 
 # Preprocessing: Removes endlines, non_alpha characters and makes all characters lowercase
 # Returns the new list of preprocessed documents
 def preprocess_data(documents):
+    t_start = time.time()
     print("Preprocessing data..")
     preprocessed_docs = list()
     for document in documents:
@@ -28,7 +26,8 @@ def preprocess_data(documents):
         doc = ''.join([c for c in doc if c.isalpha() or c == ' '])
         preprocessed_docs.append(doc.lower())
 
-    print("Done!\n")
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s)\n")
     return preprocessed_docs
 
 # Creates a feature vector using the document and the given embeddings
@@ -49,8 +48,9 @@ def use_embeddings(document, embeddings, features=10):
 # Turns every document in the list into a feature vector
 # Returns the new list of vectorized documents in dimension: (number of documents, number of features)
 def vectorizer(documents, maximum_features=50, mode='embeddings'):
+    t_start = time.time()
+    old_dimensions = np.array(documents).shape
     print(f"Vectorizing data into {maximum_features} dimensions..")
-    print(f"Dimensions = {np.array(documents).shape}")
     all_vectorized_docs = list()
     if mode == 'embeddings':
         embeddings = json.load(open('embeddings/embeddings_5.json', 'r'))
@@ -68,20 +68,23 @@ def vectorizer(documents, maximum_features=50, mode='embeddings'):
             vectorized_doc = vectorized_doc.data.tolist()
             all_vectorized_docs.append(vectorized_doc)
 
-    print(f"New dimensions = {np.array(all_vectorized_docs).shape}")
-    print("Done!\n")
+    new_dimensions = np.array(all_vectorized_docs).shape
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s); {old_dimensions} => {new_dimensions}\n")
     return all_vectorized_docs
 
 # Normalizes the given list of document vectors
 # Returns the new list of normalized vectors
 def normalize_vectors(documents):
+    t_start = time.time()
     print("Normalizing Vectors..")
     normalized = list()
     maximum = max([max(document_vector) for document_vector in documents])
     for document_vector in documents:
         normalized.append([val/maximum for val in document_vector])
 
-    print("Done!\n")
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s);\n")
     return normalized
 
 # Prepares data; filters, preprocesses and vectorizes the documents, and binarize the labels
@@ -111,6 +114,7 @@ def prepare_data(documents,labels):
 # Define model, build model, and train model.
 # Returns (model, training history)
 def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE):
+    t_start = time.time()
     print("Building model...")
     nb_features = X_train.shape[1]
     nb_classes = Y_train.shape[1]
@@ -137,8 +141,8 @@ def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE):
     print("Training model...")
     # Train model
     history = model.fit(X_train, Y_train, verbose=1, epochs=e, batch_size=bs)
-    print("Done!\n")
-
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s);\n")
     return model, history
 
 # Performs the training and validating of the accuracy
@@ -195,5 +199,5 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
 if __name__ == '__main__':
     data = get_train_data(list(range(20,22)))
     print(f'TOTAL DATA INSTANCES = {len(data[0])},{len(data[1])}')
-    mlp(data, epochs=20, batch_size=20, use_cross_validation=False)
+    mlp(data, epochs=20, batch_size=20, use_cross_validation=True)
 

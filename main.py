@@ -3,6 +3,7 @@
 import json
 import string
 import re
+import time
 import numpy as np
 from nltk.corpus import stopwords
 from nltk import word_tokenize
@@ -12,15 +13,18 @@ from constants import NEWSPAPER_ORIENTATION
 # Filters the documents that do not adhere to the given minima
 # Returns the new list of filtered documents
 def filter_documents(documents, labels, minimum_words=100):
+    t_start = time.time()
     data = list(zip(documents, labels))
     print("Filtering documents with less than {0} words".format(minimum_words))
     filtered_documents = [(d,l) for (d,l) in data if len(d.split(" ")) >= minimum_words]
-    print(f"Done!; removed {len(documents) - len(filtered_documents)} documents\n")
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s); removed {len(documents) - len(filtered_documents)} documents\n")
     return list(zip(*filtered_documents))
 
 # Balances the dataset 50/50 by removing examples from the more present labels
 # Returns the new list of documents and labels
 def balance_dataset(documents,labels):
+    t_start = time.time()
     print("Balancing dataset 50/50")
     data = list(zip(documents,labels))
     np.random.shuffle(data)
@@ -31,7 +35,8 @@ def balance_dataset(documents,labels):
     np.random.shuffle(data)
     no_lefts = len([(d,l) for d,l in data if l == "Left-Center"])
     no_rights = len([(d,l) for d,l in data if l == "Right-Center"])
-    print(f"Done! Balance of data: \t Left-Center={no_lefts}  :  Right-Center={no_rights}\n")
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s); Balance of data: \t Left-Center={no_lefts}  :  Right-Center={no_rights}\n")
     return list(zip(*data))
 
 # Preprocessing: Removes endlines, non_alpha characters and makes all characters lowercase
@@ -51,6 +56,7 @@ def preprocess_text(text):
 
 # Read in COP file data, for the default all files are read, otherwise a list of indices should be provided
 def read_data(cop_selection=None, surpress_print=False):
+    t_start = time.time()
     if not cop_selection:
         cop_selection = list(range(1, 24 + 1))
     cop_data = dict()
@@ -65,8 +71,8 @@ def read_data(cop_selection=None, surpress_print=False):
             cop['collection_end'] = cop_6a['collection_end']
             cop['articles'] = cop['articles'] + cop_6a['articles']
         cop_data[int(cop_edition)] = cop
-
-    print('Done!')
+    t_end = np.round(time.time() - t_start, 2)
+    print(f"Done! ({t_end}s)\n")
     return cop_data
 
 # Retrieve training data (X = article_body, Y = political_orientation), for the default all
@@ -88,7 +94,7 @@ def get_train_data(cop_selection=None):
 # Returns (X_train, Y_train, X_test, Y_test)
 def split_data(X, Y, split=0.8):
     # Split off development set from training data
-    bound = math.floor(split * len(X))
+    bound = np.math.floor(split * len(X))
     X_train, Y_train = (X[:bound], Y[:bound])   # Default = 80%
     X_dev, Y_dev = (X[bound:], Y[bound:])       # Default = 100% - train% = 20%
 
