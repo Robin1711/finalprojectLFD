@@ -1,11 +1,10 @@
-########################################################
-########################################################
-######                                            ######
-######      LEARNING FROM DATA, FINAL PROJECT     ######
-######               (SVM CLASSIFIER)             ######
-######                                            ######
-########################################################
-########################################################
+# !/usr/bin/env python3
+"""
+svm.py
+
+This script performs the Support Vector Machines clasification 
+on the binary task of political orientation of articles regarding COP meetings.
+"""
 
 # Importing libraries
 
@@ -20,118 +19,58 @@ from sklearn.svm import SVC, LinearSVC
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.pipeline import make_pipeline
 
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import *
 from sklearn.model_selection import cross_val_score
 
 from constants import NEWSPAPER_ORIENTATION
 
-"""
-def preprocess_text(text):
-    txt = text.lower()
-    txt = re.sub(r"[^a-zA-ZÀ-ÿ]", " ", txt)
-    translator = str.maketrans(punctuations, " " * len(punctuations))
-    s = txt.translate(translator)
-    no_digits = ''.join([i for i in s if not i.isdigit()])
-    cleaner = " ".join(no_digits.split())
-    word_tokens = word_tokenize(cleaner)
-    filtered_sentence = [w for w in word_tokens if not w in stoplist]
-    return filtered_sentence
-
-# Read in COP file data, for the default all files are read, otherwise a list of indices should be provided
-
-
-def read_data(cop_selection=None, surpress_print=False):
-    if not cop_selection:
-        cop_selection = list(range(1, 24 + 1))
-        cop_data = dict()
-    for COP in cop_selection:
-        file_path = "COP" + str(COP) + ".filt3.sub.json"
-        # if not surpress_print:
-        print('Reading in articles from {0}...'.format(file_path))
-        cop = json.load(open(file_path, 'r'))
-        cop_edition = cop.pop('cop_edition', None)
-        # Merging 6a data with rest of the data
-        if COP == 6:
-            cop_6a = json.load(open("COP6a.filt3.sub.json", 'r'))
-            cop['collection_end'] = cop_6a['collection_end']
-            cop['articles'] = cop['articles'] + cop_6a['articles']
-        cop_data[int(cop_edition)] = cop
-
-    print('Done!')
-    return cop_data
-
-# Retrieve training data (X = article_body, Y = political_orientation), for the default all files are read, otherwise a list of indices should be provided
-
-
-def get_train_data(cop_selection=None):
-    cop_data = read_data(cop_selection)
-    trainX, trainY = list(), list()
-    idx = 1
-
-    for cop in cop_data.keys():
-        for article in cop_data[cop]['articles']:
-            article_body = article['headline'] + " " + article['body']
-            political_orientation = NEWSPAPER_ORIENTATION[article['newspaper']]
-            trainX.append(article_body)
-            trainY.append(political_orientation)
-            print(idx, end="\r")
-            idx += 1
-
-    print("Processing data. This may take several seconds.")
-    return trainX, trainY
-"""
-
-X, Y = get_train_data(cop_selection=[2])
-
-print("Preprocessing happening")
-X = [preprocess_text(doc) for doc in X]
-
-split_point = int(0.80 * len(X))
-Xtrain = X[:split_point]
-Ytrain = Y[:split_point]
-Xtest = X[split_point:]
-Ytest = Y[split_point:]
-
-
 def identity(x):
     return x
 
+def main():
+    X, Y = get_train_data(cop_selection=None)
 
-vec = TfidfVectorizer(preprocessor=identity, tokenizer=identity)
+    print("Preprocessing happening")
+    X = [preprocess_text(doc) for doc in X]
 
-svc = SVC(kernel='rbf', C=1, gamma=100)
+    split_point = int(0.80 * len(X))
+    Xtrain = X[:split_point]
+    Ytrain = Y[:split_point]
+    Xtest = X[split_point:]
+    Ytest = Y[split_point:]
 
-classifier = make_pipeline(vec, svc)
 
-# Fitting our classifier onto our data
-t0 = time.time()
-classifier.fit(Xtrain, Ytrain)
-train_time = time.time() - t0
-print("training time: ", train_time)
+    vec = TfidfVectorizer(preprocessor=identity, tokenizer=identity)
 
-# Testing new data
-t0 = time.time()
-Yguess = classifier.predict(Xtest)
-test_time = time.time() - t0
-print("testing time: ", test_time, '\n')
+    svc = SVC(kernel='rbf', C=100, gamma=0.01)
 
-print(accuracy_score(Ytest, Yguess))
-print(classification_report(Ytest, Yguess))
-print(confusion_matrix(Ytest, Yguess))
+    classifier = make_pipeline(vec, svc)
 
-# Defining 5 - fold cross - validation
-cv_classifier = make_pipeline(vec, svc)
-print("Performing 5-fold cross validation..")
-scores = cross_val_score(cv_classifier, X, Y, cv=5)
-print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+    # Fitting our classifier onto our data
+    t0 = time.time()
+    classifier.fit(Xtrain, Ytrain)
+    train_time = time.time() - t0
+    print("training time: ", train_time)
 
-########################################################
-########################################################
-####                                                ####
-####                END OF SCRIPT                   ####
-####                                                ####
-########################################################
-########################################################
+    # Testing new data
+    t0 = time.time()
+    Yguess = classifier.predict(Xtest)
+    test_time = time.time() - t0
+    print("testing time: ", test_time, '\n')
 
+    # Printing metrics
+    print("Accuracy:\t", accuracy_score(Ytest, Yguess))
+    print("F-scores:\t", f1_score(Ytest, Yguess, pos_label='Left-Center'))
+    print("Precision:\t", precision_score(Ytest, Yguess, pos_label='Left-Center'))
+    print("Recall:\t", recall_score(Ytest, Yguess, pos_label='Left-Center'))
+    print(classification_report(Ytest, Yguess))
+    print(confusion_matrix(Ytest, Yguess))
+
+    # Defining 5 - fold cross - validation
+    print("Performing 5-fold cross validation..")
+    cv_classifier = make_pipeline(vec, svc)
+    scores = cross_val_score(cv_classifier, X, Y, cv=5)
+    print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+if __name__ == "__main__":
+    main()
