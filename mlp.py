@@ -1,39 +1,57 @@
 # !/usr/bin/env python3
 from main import *
 import numpy as np
-import time
+import time, sys, re, string
+
+from nltk.stem import PorterStemmer
+from collections import Counter
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.model_selection import KFold
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras.layers.core import Dense
+from keras.optimizers import SGD
 
 np.random.seed(2018)  # for reproducibility and comparability, don't change!
-BATCH_SIZE = 10
-EPOCHS = 25
-K_FOLDS = 8
+BATCH_SIZE = 20
+EPOCHS = 15
+K_FOLDS = 5
 USE_CROSSVALIDATION = False
+BALANCING = True
+PREPROCESSING = False
 
-# Preprocessing: Removes endlines, non_alpha characters and makes all characters lowercase
+# SET = True
+# global SET
+# if SET:
+#     print(words)
+#     print(list(top_words))
+#     SET = False
+
+# Preprocessing: Removes endlines, non_alpha characters, remove stopwords and makes all characters lowercase
 # Returns the new list of preprocessed documents
 def preprocess_data(documents):
     t_start = time.time()
     print("Preprocessing data..")
     preprocessed_docs = list()
-    for document in documents:
-        doc = ' '.join([sentence for sentence in document.split("\n") if len(sentence) > 2])
-        doc = ''.join([c for c in doc if c.isalpha() or c == ' '])
-        preprocessed_docs.append(doc.lower())
-
+    for idx, document in enumerate(documents):
+        stemmer = PorterStemmer()
+        print(f"\rdoc: {idx+1}/{len(documents)}", end='')
+        doc = document.lower()
+        doc = re.sub(r'\d +', '',doc)
+        doc = doc.translate(str.maketrans(string.punctuation, " " * len(string.punctuation)))
+        doc = ' '.join([stemmer.stem(w) for w in word_tokenize(doc) if not w in set(stopwords.words('english'))])
+        preprocessed_docs.append(doc)
     t_end = np.round(time.time() - t_start, 2)
-    print(f"Done! ({t_end}s)\n")
+    print(f"\nDone! ({t_end}s)\n")
     return preprocessed_docs
 
 # Creates a feature vector using the document and the given embeddings
 # Returns the feature vector for the given document
-def use_embeddings(document, embeddings, features=10):
-    words = document.split(' ')[:10]
+def use_embeddings(document, embeddings, number_words=30):
+    top_words, counts = list(zip(*Counter(document.split(' ')).most_common(number_words)))
+    words = document.split(' ')
+    words = words[:number_words]
     vectorized_doc = list()
     for word in words:
         try:
@@ -50,11 +68,12 @@ def use_embeddings(document, embeddings, features=10):
 def vectorizer(documents, maximum_features=50, mode='embeddings'):
     t_start = time.time()
     old_dimensions = np.array(documents).shape
-    print(f"Vectorizing data into {maximum_features} dimensions..")
+    print(f"Vectorizing documents into feature vectors..")
     all_vectorized_docs = list()
     if mode == 'embeddings':
         embeddings = json.load(open('embeddings/embeddings_5.json', 'r'))
-        for document in documents:
+        for idx, document in enumerate(documents):
+            print(f"\rdoc: {idx + 1}/{len(documents)}", end='')
             vectorized_doc = use_embeddings(document, embeddings)
             all_vectorized_docs.append(vectorized_doc)
     else:  # != embedding':
@@ -63,14 +82,15 @@ def vectorizer(documents, maximum_features=50, mode='embeddings'):
         else: # == 'count':
             method = CountVectorizer(analyzer='word', stop_words='english', max_features=maximum_features)
 
-        for document in documents:
+        for idx, document in enumerate(documents):
+            print(f"\rdoc: {idx + 1}/{len(documents)}", end='')
             vectorized_doc = method.fit_transform([document])
             vectorized_doc = vectorized_doc.data.tolist()
             all_vectorized_docs.append(vectorized_doc)
 
     new_dimensions = np.array(all_vectorized_docs).shape
     t_end = np.round(time.time() - t_start, 2)
-    print(f"Done! ({t_end}s); {old_dimensions} => {new_dimensions}\n")
+    print(f"\nDone! ({t_end}s); {old_dimensions} => {new_dimensions}\n")
     return all_vectorized_docs
 
 # Normalizes the given list of document vectors
@@ -89,15 +109,17 @@ def normalize_vectors(documents):
 
 # Prepares data; filters, preprocesses and vectorizes the documents, and binarize the labels
 # Returns (prepared documents, binarized labels, list of unique classes)
-def prepare_data(documents,labels):
+def prepare_data(documents,labels,balancing=BALANCING, preprocessing=PREPROCESSING):
     # Filter short documents
     documents,labels = filter_documents(documents, labels, minimum_words=100)
 
     # Balance dataset 50/50
-    documents, labels = balance_dataset(documents, labels)
+    if balancing:
+        documents, labels = balance_dataset(documents, labels)
 
     # Preprocess the documents
-    documents = preprocess_data(documents)
+    if preprocessing:
+        documents = preprocess_data(documents)
 
     # Vectorize documents and binarize labels
     documents = vectorizer(documents, maximum_features=20)
@@ -113,7 +135,7 @@ def prepare_data(documents,labels):
 
 # Define model, build model, and train model.
 # Returns (model, training history)
-def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE):
+def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE, verbose=0):
     t_start = time.time()
     print("Building model...")
     nb_features = X_train.shape[1]
@@ -128,19 +150,11 @@ def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE):
     # Output layer with softmax activation
     model.add(Dense(units=nb_classes, activation='softmax'))
     # Specify optimizer, loss and validation metric
-    model.compile(loss='mse', optimizer='sgd', metrics=['accuracy'])
-
-    # # The perceptron:
-    # model = Sequential()
-    # model.add(Dense(input_dim=nb_features, units=nb_classes))
-    # model.add(Activation("linear"))
-    # sgd = SGD(lr=0.002)
-    # loss_function = 'mean_squared_error'
-    # model.compile(loss=loss_function, optimizer=sgd, metrics=['accuracy'])
+    model.compile(loss='mse', optimizer=SGD(lr=0.002), metrics=['accuracy'])
 
     print("Training model...")
     # Train model
-    history = model.fit(X_train, Y_train, verbose=1, epochs=e, batch_size=bs)
+    history = model.fit(X_train, Y_train, verbose=verbose, epochs=e, batch_size=bs)
     t_end = np.round(time.time() - t_start, 2)
     print(f"Done! ({t_end}s);\n")
     return model, history
@@ -166,8 +180,8 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
         for train_idx, test_idx in kf.split(inputs, targets):
             print('------------------------------------------------------------------------')
             print('Training for fold {0} ...'.format(fold_number))
-            model, history = run_model(inputs[train_idx], targets[train_idx], epochs, batch_size)
-            scores = model.evaluate(inputs[test_idx], targets[test_idx], verbose=0)
+            model, history = run_model(inputs[train_idx], targets[train_idx], epochs, batch_size, 1)
+            scores = model.evaluate(inputs[test_idx], targets[test_idx])
 
             print(f'Score for fold {fold_number}: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1] * 100}%')
             acc_per_fold.append(scores[1] * 100)
@@ -178,7 +192,7 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
         print('Training and testing the model with:')
         print(len(X_train), len(Y_train), 'training instances')
         print(len(X_test), len(Y_test), 'testing instances')
-        model, history = run_model(X_train, Y_train, epochs, batch_size)
+        model, history = run_model(X_train, Y_train, epochs, batch_size, verbose=1)
         scores = model.evaluate(X_test, Y_test, verbose=0)
         print(f'Score: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1] * 100}%')
 
@@ -197,7 +211,11 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
 
 # If the script is run directly from the command line this is executed:
 if __name__ == '__main__':
-    data = get_train_data(list(range(20,22)))
+    data = get_train_data(list(range(18,24)))
     print(f'TOTAL DATA INSTANCES = {len(data[0])},{len(data[1])}')
-    mlp(data, epochs=20, batch_size=20, use_cross_validation=True)
-
+    mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=USE_CROSSVALIDATION)
+    print(f"\n\tBALANCING: {BALANCING}")
+    print(f"\tPREPROCESSING: {PREPROCESSING}")
+    print(f"\tUSE_CROSSVALIDATION: {USE_CROSSVALIDATION}")
+    print(f"\tEPOCHS: {EPOCHS}")
+    print(f"\tBATCH_SIZE: {BATCH_SIZE}")
