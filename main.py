@@ -32,10 +32,11 @@ def balance_dataset(documents,labels):
     t_start = time.time()
     print("Balancing dataset 50/50")
     data = list(zip(documents,labels))
+    np.random.shuffle(data)
     lefts = [(d,l) for d,l in data if l == "Left-Center"]
     rights = [(d,l) for d,l in data if l == "Right-Center"]
     number_docs = min(len(lefts), len(rights))
-    data = lefts[-number_docs:] + rights[-number_docs:]
+    data = lefts[:number_docs] + rights[:number_docs]
     np.random.shuffle(data)
     no_lefts = len([(d,l) for d,l in data if l == "Left-Center"])
     no_rights = len([(d,l) for d,l in data if l == "Right-Center"])

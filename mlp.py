@@ -1,9 +1,15 @@
 # !/usr/bin/env python3
+"""
+mlp.py
+
+This script implements and runs the multi layer perceptron. The settings are set via constants on top of the file. It is dependent on the module main.py
+"""
+
 from main import *
 import numpy as np
 import time, sys, re, string
 
-from nltk.stem import PorterStemmer
+from nltk.stem import WordNetLemmatizer
 from collections import Counter
 
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
@@ -14,19 +20,15 @@ from keras.layers.core import Dense
 from keras.optimizers import SGD
 
 np.random.seed(2018)  # for reproducibility and comparability, don't change!
-BATCH_SIZE = 20
-EPOCHS = 15
+BATCH_SIZE = 5
+EPOCHS = 30
 K_FOLDS = 5
 USE_CROSSVALIDATION = False
 BALANCING = True
-PREPROCESSING = False
-
-# SET = True
-# global SET
-# if SET:
-#     print(words)
-#     print(list(top_words))
-#     SET = False
+PREPROCESSING = True
+DOCS = list(range(1, 25))
+VECTORIZER = 'embeddings'
+EMBEDDINGS = 'embeddings/embeddings_5.json'
 
 # Preprocessing: Removes endlines, non_alpha characters, remove stopwords and makes all characters lowercase
 # Returns the new list of preprocessed documents
@@ -35,12 +37,12 @@ def preprocess_data(documents):
     print("Preprocessing data..")
     preprocessed_docs = list()
     for idx, document in enumerate(documents):
-        stemmer = PorterStemmer()
+        lemmatizer = WordNetLemmatizer()
         print(f"\rdoc: {idx+1}/{len(documents)}", end='')
         doc = document.lower()
         doc = re.sub(r'\d +', '',doc)
         doc = doc.translate(str.maketrans(string.punctuation, " " * len(string.punctuation)))
-        doc = ' '.join([stemmer.stem(w) for w in word_tokenize(doc) if not w in set(stopwords.words('english'))])
+        doc = ' '.join([lemmatizer.lemmatize(w) for w in word_tokenize(doc) if len(w) > 2 and w not in set(stopwords.words('english'))])
         preprocessed_docs.append(doc)
     t_end = np.round(time.time() - t_start, 2)
     print(f"\nDone! ({t_end}s)\n")
@@ -48,16 +50,15 @@ def preprocess_data(documents):
 
 # Creates a feature vector using the document and the given embeddings
 # Returns the feature vector for the given document
-def use_embeddings(document, embeddings, number_words=30):
+def use_embeddings(document, embeddings, number_words=10):
     top_words, counts = list(zip(*Counter(document.split(' ')).most_common(number_words)))
-    words = document.split(' ')
-    words = words[:number_words]
+    words = top_words
     vectorized_doc = list()
     for word in words:
         try:
             v = embeddings[word.lower()]
         except KeyError:
-            v = embeddings['UNK']
+            v = embeddings["UNK"] if "UNK" in embeddings.keys() else [0] * 100
         vectorized_doc.append(v)
     # Vectorized_doc is now a list of Concat
     vectorized_doc = [inner for outer in vectorized_doc for inner in outer]
@@ -65,13 +66,13 @@ def use_embeddings(document, embeddings, number_words=30):
 
 # Turns every document in the list into a feature vector
 # Returns the new list of vectorized documents in dimension: (number of documents, number of features)
-def vectorizer(documents, maximum_features=50, mode='embeddings'):
+def vectorizer(documents, maximum_features=50, mode=VECTORIZER):
     t_start = time.time()
     old_dimensions = np.array(documents).shape
     print(f"Vectorizing documents into feature vectors..")
     all_vectorized_docs = list()
     if mode == 'embeddings':
-        embeddings = json.load(open('embeddings/embeddings_5.json', 'r'))
+        embeddings = json.load(open(EMBEDDINGS, 'r'))
         for idx, document in enumerate(documents):
             print(f"\rdoc: {idx + 1}/{len(documents)}", end='')
             vectorized_doc = use_embeddings(document, embeddings)
@@ -87,6 +88,8 @@ def vectorizer(documents, maximum_features=50, mode='embeddings'):
             vectorized_doc = method.fit_transform([document])
             vectorized_doc = vectorized_doc.data.tolist()
             all_vectorized_docs.append(vectorized_doc)
+    if mode == 'count':
+        all_vectorized_docs = normalize_vectors(all_vectorized_docs)
 
     new_dimensions = np.array(all_vectorized_docs).shape
     t_end = np.round(time.time() - t_start, 2)
@@ -111,7 +114,7 @@ def normalize_vectors(documents):
 # Returns (prepared documents, binarized labels, list of unique classes)
 def prepare_data(documents,labels,balancing=BALANCING, preprocessing=PREPROCESSING):
     # Filter short documents
-    documents,labels = filter_documents(documents, labels, minimum_words=100)
+    # documents,labels = filter_documents(documents, labels, minimum_words=100)
 
     # Balance dataset 50/50
     if balancing:
@@ -137,7 +140,7 @@ def prepare_data(documents,labels,balancing=BALANCING, preprocessing=PREPROCESSI
 # Returns (model, training history)
 def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE, verbose=0):
     t_start = time.time()
-    print("Building model...")
+    print("\nBuilding model...")
     nb_features = X_train.shape[1]
     nb_classes = Y_train.shape[1]
     print(f'{nb_features} features')
@@ -146,7 +149,7 @@ def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE, verbose=0):
     # Define model
     model = Sequential()
     # Single hidden layer
-    model.add(Dense(input_dim=nb_features, units=200))
+    model.add(Dense(input_dim=nb_features, units=200, activation='sigmoid'))
     # Output layer with softmax activation
     model.add(Dense(units=nb_classes, activation='softmax'))
     # Specify optimizer, loss and validation metric
@@ -167,7 +170,7 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
 
     if use_cross_validation:
         ### Perform K-fold Cross Validation
-        print('Peforming {0} Cross Validation...'.format(kfolds))
+        print('Peforming {0} Fold Cross Validation...'.format(kfolds))
         acc_per_fold = []
         loss_per_fold = []
         # Merge inputs and targets
@@ -187,6 +190,8 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
             acc_per_fold.append(scores[1] * 100)
             loss_per_fold.append(scores[0])
             fold_number = fold_number + 1
+        print(f"Avg accuracy over the folds: {sum(acc_per_fold)/kfolds}")
+        print(f"Avg loss over the folds: {sum(loss_per_fold)/kfolds}")
     else:
         ### Perform 'regular' training/testing by splitting the dataset
         print('Training and testing the model with:')
@@ -211,11 +216,6 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
 
 # If the script is run directly from the command line this is executed:
 if __name__ == '__main__':
-    data = get_train_data(list(range(18,24)))
+    data = get_train_data(DOCS)
     print(f'TOTAL DATA INSTANCES = {len(data[0])},{len(data[1])}')
     mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=USE_CROSSVALIDATION)
-    print(f"\n\tBALANCING: {BALANCING}")
-    print(f"\tPREPROCESSING: {PREPROCESSING}")
-    print(f"\tUSE_CROSSVALIDATION: {USE_CROSSVALIDATION}")
-    print(f"\tEPOCHS: {EPOCHS}")
-    print(f"\tBATCH_SIZE: {BATCH_SIZE}")
