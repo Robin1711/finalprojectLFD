@@ -1,11 +1,10 @@
-########################################################
-########################################################
-######                                            ######
-######      LEARNING FROM DATA, FINAL PROJECT     ######
-######             (DUMMY CLASSIFIER)             ######
-######                                            ######
-########################################################
-########################################################
+# !/usr/bin/env python3
+"""
+dummy.py
+
+Baseline model for the binary classification task of political orientation.
+It predicts the majority class every time.
+"""
 
 
 # IMPORTING LIBRARIES
