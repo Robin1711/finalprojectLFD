@@ -1,155 +1,206 @@
 # !/usr/bin/env python3
-from main import *
+from keras.optimizers import SGD
 
-import argparse
+from main import *
 import numpy as np
 import math
-import nltk
 import time
-from collections import Counter
 
-import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix, accuracy_score
-from sklearn.feature_extraction.text import TfidfVectorizer
-
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.metrics import classification_report, accuracy_score
+from sklearn.model_selection import KFold
 from keras.models import Sequential
-from keras.layers.core import Dense
-from keras.utils import np_utils, generic_utils
-from sklearn.preprocessing import label_binarize
+from keras.layers.core import Dense, Activation
+
 np.random.seed(2018)  # for reproducibility and comparability, don't change!
-
+BATCH_SIZE = 10
 EPOCHS = 50
-BATCH_SIZE = 5
+K_FOLDS = 8
+USE_CROSSVALIDATION = False
 
-SHOW_CONFUSION_MATRIX = False
-USE_EMBEDDINGS = False
-EMBEDDINGS_PATH = "embeddings/embeddings_5.json"
 
-np.random.seed(1995)  # DON'T CHANGE; for reproducibility and comparability
+# Filters the documents that do not adhere to the given minima
+# Returns the new list of filtered documents
+def filter_documents(documents, minimum_words=100):
+    print("Filtering documents with less than {0} words".format(minimum_words))
+    filtered_documents = [d for d in documents if len(d.split(" ")) >= minimum_words]
+    print(f"Done!; removed {len(documents) - len(filtered_documents)} documents\n")
+    return filtered_documents
 
-# Read in word embeddings
-def read_embeddings(embeddings_file):
-    print('Reading in embeddings from {0}...'.format(embeddings_file))
-    embeddings = json.load(open(embeddings_file, 'r'))
-    embeddings = {word: numpy.array(embeddings[word]) for word in embeddings}
-    print('Done!')
-    return embeddings
-
-# Turn words into embeddings, i.e. replace words by their corresponding embeddings
-def vectorizer(X, embeddings):
-    print("Vectorizing data..")
-    vectorized_X = list()
-    # # Take number characters and number words
-    # characters = [len(body) for body in X]
-    # words = [len(((body.replace("\n"," ")).replace("."," ")).split(" ")) for body in X]
-    # vectorized_X = np.array([[c/max(characters) for c in characters], [w/max(words) for w in words]])
-    # vectorized_X = np.transpose(vectorized_X)
-
-    # # Use the tfidf vectorizer
-    tfidfvectorizer = TfidfVectorizer(analyzer='word', stop_words='english', max_features=1000)
-    vectorized_X = tfidfvectorizer.fit_transform(X)
-    vectorized_X = vectorized_X.toarray()
-    vectorized_X.tolist()
-
-    print("Done!")
-    return vectorized_X
-
-# Make from text body's numerical data (feature vectors)
-def preprocess_data(X):
+# Preprocessing: Changes al endlines to spaces in a document
+# Returns the new list of preprocessed documents
+def preprocess_data(documents):
     print("Preprocessing data..")
-    X_preprocessed = list()
-    # for document in X:
-    #     print(type(document), len(document))
-    X_preprocessed = X
-    print("Done!")
-    return np.array(X_preprocessed)
-    # TOP_WORDS = 2
-    # arr = np.empty((0, TOP_WORDS))
-    # for body in X:
-    #     words = [w.lower() for w in nltk.word_tokenize(body) if w.isalpha() and len(w) > 4]
-    #     counted_words = Counter(words)
-    #     counted_words = sorted([(counted_words[key], key) for key in counted_words.keys()])
-    #     vectorized_words = [vectorizer(word, embeddings) for amount,word in counted_words[TOP_WORDS:]]
-    #     # arr = np.append(arr, np.array([[1, 2, 3]]), axis=0)
-    #     # arr = np.append(arr, np.array([[4, 5, 6]]), axis=0)
-    #     print(vectorized_words[0].shape)
-    #     break
+    preprocessed_docs = list()
+    for document in documents:
+        doc = ' '.join([sentence for sentence in document.split("\n") if len(sentence) > 2])
+        preprocessed_docs.append(doc)
 
-# Prepare data; Labels are binarized; X (the article) is made into a feature vector
-# Divide the set in a train, development, and test set.
-def prepare_data(X,Y):
-    print("Preparing data...")
-    # Binarize labels and get classes
-    classes = sorted(list(set(Y)))
-    # Y_binary = np.array(label_binarize(Y, classes))
-    Y_binary = np.array([[1,0] if label == "Left-Center" else [0, 1] for label in Y])
+    print("Done!\n")
+    return preprocessed_docs
 
-    low = math.floor(0.7 * len(X))
-    up = math.floor(0.9 * len(X))
-    X_train, Y_train = (X[:low], Y_binary[:low])    # 70%
-    X_dev, Y_dev = (X[low:up], Y_binary[low:up])    # 20%
-    X_test, Y_test = (X[up:], Y_binary[up:])        # 10%
-    Y_test = np.array([0 if cs[0] == 1 else 1 for cs in Y_test])
+# Turns every document in the list into a feature vector
+# Returns the new list of vectorized documents in dimension: (number of documents, number of features)
+def vectorizer(documents, maximum_features=50, mode='tfidf'):
+    print(f"Vectorizing data into {maximum_features} dimensions..")
+    print(f"Dimensions = {np.array(documents).shape}")
+    all_vectorized_docs = list()
+    for document in documents:
+        # Use the tfidf vectorizer
+        if mode == 'tfidf':
+            method = TfidfVectorizer(analyzer='word', ngram_range=(1, 3), stop_words='english', max_features=maximum_features)
+        elif mode == 'count':
+            method = CountVectorizer(analyzer='word', stop_words='english', max_features=maximum_features)
 
-    print("Done!")
-    return X_train, X_dev, X_test, Y_train, Y_dev, Y_test, classes
+        vectorized_doc = method.fit_transform([document])
+        vectorized_doc = vectorized_doc.data.tolist()
+        all_vectorized_docs.append(vectorized_doc)
 
-# Build the model and train the model with the given train and development set
-def build_model(X_train, X_dev, Y_train, Y_dev):
-    print("\nBuilding model...")
+    print(f"New dimensions = {np.array(all_vectorized_docs).shape}")
+    print("Done!\n")
+    return all_vectorized_docs
 
-    nb_documents = X_train.shape[0]
-    print(nb_documents, 'training documents')
+# Normalizes the given list of document vectors
+# Returns the new list of normalized vectors
+def normalize_vectors(documents):
+    print("Normalizing Vectors..")
+    normalized = list()
+    maximum = max([max(document_vector) for document_vector in documents])
+    for document_vector in documents:
+        normalized.append([val/maximum for val in document_vector])
+
+    print("Done\n!")
+    return normalized
+
+# Prepares data; filters, preprocesses and vectorizes the documents, and binarize the labels
+# Returns (prepared documents, binarized labels, list of unique classes)
+def prepare_data(documents,labels):
+    # Filter short documents
+    documents = filter_documents(documents, minimum_words=100)
+
+    # Balance dataset 50/50
+    print("Balancing dataset 50/50")
+    data = list(zip(documents,labels))
+    np.random.shuffle(data)
+    lefts = [(d,l) for d,l in data if l == "Left-Center"]
+    rights = [(d,l) for d,l in data if l == "Right-Center"]
+    number_docs = min(len(lefts), len(rights))
+    data = lefts[:number_docs] + rights[:number_docs]
+    np.random.shuffle(data)
+    no_lefts = len([(d,l) for d,l in data if l == "Left-Center"])
+    no_rights = len([(d,l) for d,l in data if l == "Right-Center"])
+    print(f"Done!; Balance of data: \t Left-Center={no_lefts} - Right-Center={no_rights}\n")
+    documents, labels = list(zip(*data))
+
+
+    # Preprocess the documents
+    documents = preprocess_data(documents)
+
+    # Vectorize documents and binarize labels
+    documents = vectorizer(documents, maximum_features=20)
+    documents = normalize_vectors(documents)
+    documents = np.array(documents)
+
+    # Convert string labels to one-hot vectors
+    classes = sorted(list(set(labels)))
+    # Y = label_binarize(Y, classes)
+    labels = np.array([[1, 0] if label == classes[0] else [0, 1] for label in labels])
+
+    return documents, labels, classes
+
+# Splits the data into a train and test set according to the given split
+# Returns (X_train, Y_train, X_test, Y_test)
+def split_data(X, Y, split=0.8):
+    # Split off development set from training data
+    bound = math.floor(split * len(X))
+    X_train, Y_train = (X[:bound], Y[:bound])   # Default = 80%
+    X_dev, Y_dev = (X[bound:], Y[bound:])       # Default = 100% - train% = 20%
+
+    return X_train, X_dev, Y_train, Y_dev
+
+# Define model, build model, and train model.
+# Returns (model, training history)
+def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE):
+    print("Building model...")
     nb_features = X_train.shape[1]
-    print(nb_features, 'features')
     nb_classes = Y_train.shape[1]
-    print(nb_classes, 'classes')
+    print(f'{nb_features} features')
+    print(f'{nb_classes} classes')
 
-    # Build the model
+    # Define model
     model = Sequential()
-    # Single 200-neuron hidden layer with sigmoid activation
-    model.add(Dense(input_dim=nb_features, units=200, activation='relu'))
+    # Single hidden layer
+    model.add(Dense(input_dim=nb_features, units=200))
     # Output layer with softmax activation
     model.add(Dense(units=nb_classes, activation='softmax'))
     # Specify optimizer, loss and validation metric
     model.compile(loss='mse', optimizer='sgd', metrics=['accuracy'])
-    # Train the model
-    history = model.fit(X_train, Y_train, epochs=EPOCHS, batch_size=BATCH_SIZE
-                        , validation_data=(X_dev, Y_dev), shuffle=True, verbose=2)
-    print("Done!")
-    return model
 
-# From the given data prepare data, build model and produce accuracy
-def mlp(data):
+    # # The perceptron:
+    # model = Sequential()
+    # model.add(Dense(input_dim=nb_features, units=nb_classes))
+    # model.add(Activation("linear"))
+    # sgd = SGD(lr=0.002)
+    # loss_function = 'mean_squared_error'
+    # model.compile(loss=loss_function, optimizer=sgd, metrics=['accuracy'])
+
+    print("Training model...")
+    # Train model
+    history = model.fit(X_train, Y_train, verbose=2, epochs=e, batch_size=bs)
+    print("Done!\n")
+
+    return model, history
+
+def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, kfolds=K_FOLDS):
     X, Y = data
+    X, Y, classes = prepare_data(X,Y)
+    X_train, X_Test, Y_train, Y_Test = split_data(X,Y)
 
-    # preprocess data
-    X = preprocess_data(X)
+    if use_cross_validation:
+        ### Perform K-fold Cross Validation
+        print('Peforming {0} Cross Validation...'.format(kfolds))
+        acc_per_fold = []
+        loss_per_fold = []
+        # Merge inputs and targets
+        inputs = np.concatenate((X_train, X_Test), axis=0)
+        targets = np.concatenate((Y_train, Y_Test), axis=0)
 
-    # vectorize data
-    embeddings = read_embeddings(EMBEDDINGS_PATH) if USE_EMBEDDINGS else dict()
-    X = vectorizer(X, embeddings)
+        # Define folds
+        fold_number = 1
+        kf = KFold(n_splits=kfolds)
+        for train_idx, test_idx in kf.split(inputs, targets):
+            print('------------------------------------------------------------------------')
+            print('Training for fold {0} ...'.format(fold_number))
+            model, history = run_model(inputs[train_idx], targets[train_idx], epochs, batch_size)
+            scores = model.evaluate(inputs[test_idx], targets[test_idx], verbose=0)
 
-    # split data into train, dev, test
-    X_train, X_dev, X_test, Y_train, Y_dev, Y_test, classes = prepare_data(X,Y)
-    print(len(X_train), len(X_dev), len(X_test))
-    # build model
-    model = build_model(X_train, X_dev, Y_train, Y_dev)
+            print(f'Score for fold {fold_number}: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1] * 100}%')
+            acc_per_fold.append(scores[1] * 100)
+            loss_per_fold.append(scores[0])
+            fold_number = fold_number + 1
+    else:
+        ### Perform 'regular' training/testing by splitting the dataset
+        print('Training and testing the model with:')
+        print(len(X_train), 'training instances')
+        print(len(X_Test), 'testing instances')
+        model, history = run_model(X_train, Y_train, epochs, batch_size)
+        scores = model.evaluate(X_Test, Y_Test, verbose=0)
+        print(f'Score: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1] * 100}%')
 
-    # Predict labels for test set
-    outputs = model.predict(X_test, batch_size=BATCH_SIZE)
-    pred_classes = np.argmax(outputs, axis=1)
-    print("Accuracy:", accuracy_score(Y_test, pred_classes))
-    print(Y_test)
-    print(pred_classes)
+        # Predict test set
+        Y_Test = np.argmax(Y_Test, axis=1)
+        Y_predicted = model.predict(X_Test)
+        Y_predicted = np.argmax(Y_predicted, axis=1)
+        print("First 50 True labels:\t\t", Y_Test[:50])
+        print("First 50 Predicted labels:\t", Y_predicted[:50])
+        print("Labels in True labels:\t\t 0: {0},\t 1: {1}\t total: {2}".format(len([l for l in Y_Test if l == 0]), len([l for l in Y_Test if l == 1]), len(Y_Test)))
+        print("Labels in Predicted labels:\t 0: {0},\t 1: {1}\t total: {2}".format(len([l for l in Y_predicted if l == 0]), len([l for l in Y_predicted if l == 1]), len(Y_predicted)))
+        print('Classification accuracy on development: {0}'.format(accuracy_score(Y_Test, Y_predicted)))
 
+        print("\nFULL CLASSIFICATION REPORT")
+        print(classification_report(Y_Test, Y_predicted))
+
+# If the script is run directly from the command line this is executed:
 if __name__ == '__main__':
-    # data = get_train_data([20,21,22,23,24])
-    data = get_train_data([20,21])
-    data = list(zip(data[0], data[1]))
-    np.random.shuffle(data)
-    samples = 500
-    data = ([x for x,y in data][:samples], [y for x,y in data][:samples])
-    # data = ([x for x,y in data], [y for x,y in data])
-    time.sleep(1)
-    mlp(data)
+    data = get_train_data(list(range(20,22)))
+    mlp(data, epochs=20, batch_size=20, use_cross_validation=False)
