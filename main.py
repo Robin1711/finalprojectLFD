@@ -2,8 +2,18 @@
 
 import json, numpy
 from constants import NEWSPAPER_ORIENTATION
-# from svm import *
-from mlp import *
+
+def preprocess_text(text):
+    txt = text.lower()
+    txt = re.sub(r"[^a-zA-ZÀ-ÿ]", " ", txt)
+    translator = str.maketrans(punctuations, " " * len(punctuations))
+    s = txt.translate(translator)
+    no_digits = ''.join([i for i in s if not i.isdigit()])
+    cleaner = " ".join(no_digits.split())
+    word_tokens = word_tokenize(cleaner)
+    filtered_sentence = [w for w in word_tokens if not w in stoplist]
+    return filtered_sentence
+
 
 # Read in COP file data, for the default all files are read, otherwise a list of indices should be provided
 def read_data(cop_selection=None, surpress_print=False):
@@ -40,10 +50,3 @@ def get_train_data(cop_selection=None):
             trainY.append(political_orientation)
 
     return trainX, trainY
-
-
-if __name__ == '__main__':
-    # read_data(list(range(5,6)))
-    data = get_train_data(list(range(1,4)))
-    svm(data)
-    mlp(data)
