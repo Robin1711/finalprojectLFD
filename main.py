@@ -1,9 +1,18 @@
 # !/usr/bin/env python3
 
-import json, numpy
+import json
+import numpy
+import re
+
+from nltk.corpus import stopwords
+from nltk import word_tokenize
+
 from constants import NEWSPAPER_ORIENTATION
 
+
 def preprocess_text(text):
+    stoplist = stopwords.words('english')
+    punctuations = string.punctuation + "’¶•@°©®™"
     txt = text.lower()
     txt = re.sub(r"[^a-zA-ZÀ-ÿ]", " ", txt)
     translator = str.maketrans(punctuations, " " * len(punctuations))
