@@ -9,9 +9,9 @@
 
 # Importing libraries
 
+from main import *
+
 import time
-import re
-import string
 import sys
 import json
 import numpy as np
@@ -25,15 +25,9 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_val_score
 
-from nltk.corpus import stopwords
-from nltk import word_tokenize
-
 from constants import NEWSPAPER_ORIENTATION
 
-stoplist = stopwords.words('english')
-punctuations = string.punctuation + "’¶•@°©®™"
-
-
+"""
 def preprocess_text(text):
     txt = text.lower()
     txt = re.sub(r"[^a-zA-ZÀ-ÿ]", " ", txt)
@@ -43,7 +37,6 @@ def preprocess_text(text):
     cleaner = " ".join(no_digits.split())
     word_tokens = word_tokenize(cleaner)
     filtered_sentence = [w for w in word_tokens if not w in stoplist]
-    
     return filtered_sentence
 
 # Read in COP file data, for the default all files are read, otherwise a list of indices should be provided
@@ -81,21 +74,19 @@ def get_train_data(cop_selection=None):
         for article in cop_data[cop]['articles']:
             article_body = article['headline'] + " " + article['body']
             political_orientation = NEWSPAPER_ORIENTATION[article['newspaper']]
-            trainX.append(preprocess_text(article_body))
+            trainX.append(article_body)
             trainY.append(political_orientation)
             print(idx, end="\r")
             idx += 1
 
-    print("Processing data. This may take some time.")
+    print("Processing data. This may take several seconds.")
     return trainX, trainY
+"""
 
+X, Y = get_train_data(cop_selection=[2])
 
-X, Y = get_train_data()
-
-# CHECK DISTRIBUTION OF LABELS:
-
-print(Y.count('Left-Center'))
-print(Y.count('Right-Center'))
+print("Preprocessing happening")
+X = [preprocess_text(doc) for doc in X]
 
 split_point = int(0.80 * len(X))
 Xtrain = X[:split_point]
@@ -108,10 +99,9 @@ def identity(x):
     return x
 
 
-vec = TfidfVectorizer(preprocessor=identity,
-                      tokenizer=identity)
+vec = TfidfVectorizer(preprocessor=identity, tokenizer=identity)
 
-svc = SVC(kernel='rbf', C=10, gamma=1)
+svc = SVC(kernel='rbf', C=1, gamma=100)
 
 classifier = make_pipeline(vec, svc)
 
@@ -128,10 +118,10 @@ test_time = time.time() - t0
 print("testing time: ", test_time, '\n')
 
 print(accuracy_score(Ytest, Yguess))
-print(classification_report(Ytest, Yguess, zero_division=0))
+print(classification_report(Ytest, Yguess))
 print(confusion_matrix(Ytest, Yguess))
 
-# Defining 5 - fold cross - validation
+# Defining 10 - fold cross - validation
 print("Performing 5-fold cross validation..")
 scores = cross_val_score(classifier, Xtrain, Ytrain, cv=5)
 print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -143,3 +133,4 @@ print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 ####                                                ####
 ########################################################
 ########################################################
+
