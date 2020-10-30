@@ -121,9 +121,10 @@ print(accuracy_score(Ytest, Yguess))
 print(classification_report(Ytest, Yguess))
 print(confusion_matrix(Ytest, Yguess))
 
-# Defining 10 - fold cross - validation
+# Defining 5 - fold cross - validation
+cv_classifier = make_pipeline(vec, svc)
 print("Performing 5-fold cross validation..")
-scores = cross_val_score(classifier, Xtrain, Ytrain, cv=5)
+scores = cross_val_score(cv_classifier, X, Y, cv=5)
 print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 ########################################################
