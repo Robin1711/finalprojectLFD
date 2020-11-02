@@ -1,5 +1,6 @@
 # IGNORE THE DATA FOLDERS
 data/
+test_data/
 plots/
 
 # IGNORE IDEA SETTINGS & .DS_Store
