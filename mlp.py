@@ -7,7 +7,7 @@ This script implements and runs the multi layer perceptron. The settings are set
 
 from main import *
 import numpy as np
-import time, sys, re, string
+import time, sys, re, string, argparse
 
 from nltk.stem import WordNetLemmatizer
 from collections import Counter
@@ -20,15 +20,18 @@ from keras.layers.core import Dense
 from keras.optimizers import SGD
 
 np.random.seed(2018)  # for reproducibility and comparability, don't change!
+
 BATCH_SIZE = 5
 EPOCHS = 30
-K_FOLDS = 5
-USE_CROSSVALIDATION = False
 BALANCING = True
 PREPROCESSING = True
-DOCS = list(range(1, 25))
 VECTORIZER = 'embeddings'
-EMBEDDINGS = 'embeddings/embeddings_5.json'
+EMBEDDINGS = 'embeddings/word_embeddings_10.json'
+
+# WILL BE IGNORED IN TESTING MODE
+K_FOLDS = 5
+USE_CROSSVALIDATION = False
+DOCS = list(range(23, 25))
 
 # Preprocessing: Removes endlines, non_alpha characters, remove stopwords and makes all characters lowercase
 # Returns the new list of preprocessed documents
@@ -155,16 +158,51 @@ def run_model(X_train, Y_train, e=EPOCHS, bs=BATCH_SIZE, verbose=0):
     # Specify optimizer, loss and validation metric
     model.compile(loss='mse', optimizer=SGD(lr=0.002), metrics=['accuracy'])
 
-    print("Training model...")
+    print("\n\nTraining model...")
     # Train model
     history = model.fit(X_train, Y_train, verbose=verbose, epochs=e, batch_size=bs)
     t_end = np.round(time.time() - t_start, 2)
     print(f"Done! ({t_end}s);\n")
     return model, history
 
+def mlp(train_data, test_data, epochs, batch_size, verbose=2):
+    # Prepare train data
+    X_train, Y_train = train_data
+    X_train, Y_train, classes = prepare_data(X_train, Y_train)
+    # Prepare test data
+    X_test, Y_test = test_data
+    X_test, Y_test, _ = prepare_data(X_test, Y_test, balancing=False)
+
+    print('Training the model with:')
+    print(len(X_train), len(Y_train), 'training instances')
+    print('Predicting test set of:')
+    print(len(X_test), len(Y_test), 'testing instances')
+
+    model, history = run_model(X_train, Y_train, epochs, batch_size, verbose=verbose)
+    scores = model.evaluate(X_test, Y_test, verbose=verbose)
+    print(f'Score: {model.metrics_names[0]} of {scores[0]}; {model.metrics_names[1]} of {scores[1] * 100}%')
+
+    # Predict test set
+    Y_test = np.argmax(Y_test, axis=1)
+    Y_predicted = model.predict(X_test)
+    Y_predicted = np.argmax(Y_predicted, axis=1)
+
+    print("First 50 True labels:\t\t", Y_test[:50])
+    print("First 50 Predicted labels:\t", Y_predicted[:50])
+    print("Labels in True labels:\t\t 0: {0},\t 1: {1},\t total: {2}".format(len([l for l in Y_test if l == 0]),
+                                                                            len([l for l in Y_test if l == 1]),
+                                                                            len(Y_test)))
+    print("Labels in Predicted labels:\t 0: {0},\t 1: {1},\t total: {2}".format(len([l for l in Y_predicted if l == 0]),
+                                                                               len([l for l in Y_predicted if l == 1]),
+                                                                               len(Y_predicted)))
+    print('Classification accuracy on COP25: {0}'.format(accuracy_score(Y_test, Y_predicted)))
+
+    print("\nFULL CLASSIFICATION REPORT")
+    print(classification_report(Y_test, Y_predicted))
+
 # Performs the training and validating of the accuracy
-def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, kfolds=K_FOLDS):
-    X, Y = data
+def validate_mlp(train_data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, kfolds=K_FOLDS):
+    X, Y = train_data
     X, Y, classes = prepare_data(X,Y)
     X_train, X_test, Y_train, Y_test = split_data(X,Y)
 
@@ -216,6 +254,20 @@ def mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=True, k
 
 # If the script is run directly from the command line this is executed:
 if __name__ == '__main__':
-    data = get_train_data(DOCS)
-    print(f'TOTAL DATA INSTANCES = {len(data[0])},{len(data[1])}')
-    mlp(data, epochs=EPOCHS, batch_size=BATCH_SIZE, use_cross_validation=USE_CROSSVALIDATION)
+    parser = argparse.ArgumentParser(description='parameters')
+    parser.add_argument('-t', '--test', action='store_true')
+    parser.add_argument('-e', '--epochs', metavar='N', type=int, default=EPOCHS, help='epochs')
+    parser.add_argument('-bs', '--batch-size', metavar='N', type=int, default=BATCH_SIZE, help='batch size')
+    args = parser.parse_args()
+
+    if args.test:
+        train_data = get_train_data()
+        test_data = get_test_data()
+        print(f'TOTAL TRAINING INSTANCES = {len(train_data[0])},{len(train_data[1])}')
+        print(f'TOTAL TESTING INSTANCES = {len(test_data[0])},{len(test_data[1])}\n')
+        mlp(train_data, test_data, epochs=args.epochs, batch_size=args.batch_size)
+    else:
+        train_data = get_train_data(DOCS)
+        print(f'TOTAL DATA INSTANCES = {len(train_data[0])},{len(train_data[1])}')
+        validate_mlp(train_data, epochs=EPOCHS, batch_size=BATCH_SIZE,
+                     use_cross_validation=USE_CROSSVALIDATION)
