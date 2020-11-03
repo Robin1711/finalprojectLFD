@@ -31,10 +31,7 @@ def identity(x):
     return x
 
 
-def main(train_data, test_data):
-
-    Xtrain, Ytrain = train_data
-    Xtest, Ytest = test_data
+def make_svm(Xtrain, Ytrain, Xtest, Ytest):
 
     print("Preprocessing happening")
     index = 1
@@ -90,16 +87,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.test:
-        train_data = get_train_data()
-        test_data = get_test_data()
+        Xtrain, Ytrain = get_train_data()
+        Xtest, Ytest = get_test_data()
         print(
-            f'TOTAL TRAINING INSTANCES = {len(train_data[0])},{len(train_data[1])}')
+            f'TOTAL TRAINING INSTANCES = {len(Xtrain)},{len(Ytrain)}')
         print(
-            f'TOTAL TESTING INSTANCES = {len(test_data[0])},{len(test_data[1])}\n')
-        main(train_data, test_data)
+            f'TOTAL TESTING INSTANCES = {len(Xtest)},{len(Ytest)}\n')
+        make_svm(Xtrain, Ytrain, Xtest, Ytest)
     else:
-        train_data = get_train_data(DOCS)
+        X, Y = get_train_data()
+        split_point = int(0.80 * len(X))
+        Xtrain = X[:split_point]
+        Ytrain = Y[:split_point]
+        Xtest = X[split_point:]
+        Ytest = Y[split_point:]
         print(
-            f'TOTAL DATA INSTANCES = {len(train_data[0])},{len(train_data[1])}')
-        validate_mlp(train_data, epochs=EPOCHS, batch_size=BATCH_SIZE,
-                     use_cross_validation=USE_CROSSVALIDATION)
+            f'TOTAL TRAINING INSTANCES = {len(Xtrain)},{len(Ytrain)}')
+        print(
+            f'TOTAL TESTING INSTANCES = {len(Xtest)},{len(Ytest)}\n')
+        make_svm(Xtrain, Ytrain, Xtest, Ytest)
